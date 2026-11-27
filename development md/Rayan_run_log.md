@@ -175,8 +175,47 @@ Job IDs also saved on Nibi in `outputs/regeneration_job_ids.txt`.
 - Note: the Stokes job rewrites tracked file `data/processed/fluodb_lite/combined_deduplicated_with_stokes.csv`;
   check `git status` on Nibi afterwards — should be unchanged.
 
-### Results (fill in when done)
-- [ ] Compare with values in `MAE_Accuracy_Bar_Graphs.py`; reproduced?
+### Outcome of first submission
+- All 6 hybrid jobs **COMPLETED** (12–18 min each, nodes c690/c192).
+- Paper comparison 28789514 and Stokes 28789516 **FAILED** with `Bus error (core dumped)`
+  after 24 and 19 min. Both were on the **same node, c354**; the hybrids (same code and environment) ran fine elsewhere.
+  Diagnosis: faulty node, not the code.
+- QY binary 28789515 was stuck at `DependencyNeverSatisfied` → cancelled.
+
+### Resubmission (2026-11-26, `--exclude=c354`)
+| Job | ID | Node | Status |
+|---|---|---|---|
+| Paper comparison | 28800822 | c139 | COMPLETED (10:43:52) |
+| Stokes paper comparison | 28800829 | c143 | COMPLETED (3:53:40) |
+| QY binary from regression | 28800823 | c60 | COMPLETED (0:00:14 — scoring only, check output exists) |
+
+Lesson: if a job dies with a Bus error/segfault early and other jobs with the same code are fine,
+check `NodeList` in `sacct` and resubmit with `--exclude=<node>`.
+
+### Results (2026-11-27) — compared with hard-coded values in `MAE_Accuracy_Bar_Graphs.py`
+Downloaded to laptop `outputs/` (tar + scp). Best model per target/split = lowest mean MAE over seeds 0,1,2; std = sample std.
+
+- **fig1/fig2 (paper comparison, 9 cases): reproduced exactly** — same best model, MAE, std, RMSE, R² to the
+  printed precision (e.g. emission molecule RF 24.85 ± 0.66, R² 0.8250).
+- **fig1 Stokes (3 cases): reproduced exactly** (random ET 11.05, molecule RF 17.85, scaffold RF 23.00).
+- **fig4 QY classification: reproduced exactly** (accuracy 0.8770 / 0.8015 / 0.7316).
+- **fig3 hybrid:** best base model MAE reproduced exactly; hybrid-ensemble MAE differs slightly:
+
+| Case | Hybrid MAE (paper) | Hybrid MAE (mine) | Improvement paper → mine |
+|---|---|---|---|
+| Absorption / molecule | 22.1534 | 22.1047 | 0.457 → 0.506 |
+| Emission / molecule | 26.6456 | 26.6596 | 0.408 → 0.394 |
+| QY / molecule | 0.1574 | 0.1584 | 0.0076 → 0.0066 |
+| Absorption / scaffold | 35.7370 | 35.7341 | −4.447 → −4.444 |
+| Emission / scaffold | 34.5058 | 34.4126 | 1.845 → 1.938 |
+| QY / scaffold | 0.1965 | 0.1971 | 0.0051 → 0.0044 |
+
+  Differences are ≤0.1 nm / ≤0.001 QY; conclusions unchanged (hybrid helps slightly except absorption/scaffold,
+  where it is ~4.4 nm worse). Likely cause: run-to-run nondeterminism in the hybrid's MLP/meta-learner
+  (multi-threaded training), not a code or data change.
+- [ ] `git status` on Nibi after the Stokes job: still to confirm clean.
+
+- [x] Compare with values in `MAE_Accuracy_Bar_Graphs.py`; reproduced? **Yes** (hybrid within ~0.1 nm).
 - [ ] Redraw figures from own runs.
 - [ ] Add property × split heatmap (random/molecule/scaffold, ties from 3 seeds) and absorption-by-region.
 
